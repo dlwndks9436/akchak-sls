@@ -1,6 +1,7 @@
 import type { AWS } from "@serverless/typescript";
 
 import hello from "@functions/hello";
+import Region from "./Types/Region";
 
 const serverlessConfiguration: AWS = {
   service: "akchak-sls",
@@ -9,8 +10,8 @@ const serverlessConfiguration: AWS = {
   provider: {
     name: "aws",
     runtime: "nodejs14.x",
-    stage: "dev",
-    region: "ap-northeast-2",
+    stage: "${opt:stage, 'dev'}",
+    region: "${opt:region, 'ap-northeast-2'}" as Region,
     apiGateway: {
       minimumCompressionSize: 1024,
       shouldStartNameWithService: true,

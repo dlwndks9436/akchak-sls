@@ -1,14 +1,17 @@
 import type { AWS } from "@serverless/typescript";
 
 import hello from "@functions/hello";
+import Region from "../../Types/Region";
 
 const serverlessConfiguration: AWS = {
   service: "bastion-host",
   frameworkVersion: "3",
-  plugins: ["serverless-esbuild"],
+  plugins: ["serverless-esbuild", "serverless-offline"],
   provider: {
     name: "aws",
     runtime: "nodejs14.x",
+    stage: "${opt:stage, 'dev'}",
+    region: "${opt:region, 'ap-northeast-2'}" as Region,
     apiGateway: {
       minimumCompressionSize: 1024,
       shouldStartNameWithService: true,
@@ -32,7 +35,8 @@ const serverlessConfiguration: AWS = {
       platform: "node",
       concurrency: 10,
     },
-    vpc: "${file(../../serverless.yml):resources.Resources.Vpc}",
+    vpc: "${param:vpc}",
+    dbSecurityGroup: "${param:db-security-group-id}",
   },
   resources: {
     Resources: {
@@ -41,9 +45,7 @@ const serverlessConfiguration: AWS = {
         Properties: {
           AvailabilityZone: "ap-northeast-2c",
           CidrBlock: "30.0.2.0/24",
-          VpcId: {
-            Ref: "${self:custom:vpc}",
-          },
+          VpcId: "${self:custom.vpc}",
         },
       },
       BHSecurityGroup: {
@@ -53,15 +55,19 @@ const serverlessConfiguration: AWS = {
           GroupDescription: "Allow my inbound to port 22, no outbound",
           SecurityGroupIngress: [
             {
-              CidrIp: "218.235.68.160",
+              CidrIp: "218.235.68.0/24",
               IpProtocol: "tcp",
               FromPort: 22,
               ToPort: 22,
             },
           ],
-          VpcId: {
-            Ref: "${self:custom:vpc}",
-          },
+          VpcId: "${self:custom.vpc}",
+        },
+      },
+      NewKeyPair: {
+        Type: "AWS::EC2::KeyPair",
+        Properties: {
+          KeyName: "BHKeyPair",
         },
       },
       BastionHost: {
@@ -69,15 +75,21 @@ const serverlessConfiguration: AWS = {
         Properties: {
           InstanceType: "t2.micro",
           ImageId: "ami-0fd0765afb77bcca7",
-          SecurityGroups: [
+          KeyName: {
+            Ref: "NewKeyPair",
+          },
+          NetworkInterfaces: [
             {
-              Ref: "BHSecurityGroup",
+              AssociatePublicIpAddress: true,
+              DeleteOnTermination: true,
+              SubnetId: {
+                Ref: "PublicSubnet",
+              },
+              DeviceIndex: 0,
+              GroupSet: [{ "Fn::GetAtt": ["BHSecurityGroup", "GroupId"] }],
             },
           ],
           SourceDestCheck: false,
-          SubnetId: {
-            Ref: "PublicSubnet",
-          },
         },
       },
       AllowSSH: {
@@ -86,13 +98,57 @@ const serverlessConfiguration: AWS = {
           SourceSecurityGroupId: {
             Ref: "BHSecurityGroup",
           },
-          GroupId: {
-            Ref: "${file(../../serverless.yml):resources.Resources.DBSecurityGroup}",
-          },
+          GroupId: "${self:custom.dbSecurityGroup}",
           IpProtocol: "tcp",
           FromPort: 22,
           ToPort: 22,
         },
+      },
+      InternetGateway: {
+        Type: "AWS::EC2::InternetGateway",
+      },
+      VPCGatewayAttachment: {
+        Type: "AWS::EC2::VPCGatewayAttachment",
+        Properties: {
+          VpcId: "${self:custom.vpc}",
+          InternetGatewayId: {
+            Ref: "InternetGateway",
+          },
+        },
+      },
+      PublicRouteTable: {
+        Type: "AWS::EC2::RouteTable",
+        Properties: {
+          VpcId: "${self:custom.vpc}",
+        },
+      },
+      PublicRoute: {
+        Type: "AWS::EC2::Route",
+        Properties: {
+          RouteTableId: {
+            Ref: "PublicRouteTable",
+          },
+          DestinationCidrBlock: "0.0.0.0/0",
+          GatewayId: {
+            Ref: "InternetGateway",
+          },
+        },
+      },
+      SubnetRouteTableAssociationPublic1: {
+        Type: "AWS::EC2::SubnetRouteTableAssociation",
+        Properties: {
+          SubnetId: {
+            Ref: "PublicSubnet",
+          },
+          RouteTableId: {
+            Ref: "PublicRouteTable",
+          },
+        },
+      },
+    },
+    Outputs: {
+      NewKeyPairId: {
+        Value: { "Fn::GetAtt": ["NewKeyPair", "KeyPairId"] },
       },
     },
   },
