@@ -98,6 +98,23 @@ const serverlessConfiguration: AWS = {
           SubnetIds: [{ Ref: "PrivateSubnet1" }, { Ref: "PrivateSubnet2" }],
         },
       },
+      DBParameterGroup: {
+        Type: "AWS::RDS::DBParameterGroup",
+        Properties: {
+          Description: "Parameter group for akchak db",
+          Family: "mysql5.7",
+          Parameters: {
+            character_set_client: "utf8mb4",
+            character_set_connection: "utf8mb4",
+            character_set_database: "utf8mb4",
+            character_set_filesystem: "utf8mb4",
+            character_set_results: "utf8mb4",
+            character_set_server: "utf8mb4",
+            collation_connection: "utf8mb4_unicode_ci",
+            collation_server: "utf8mb4_unicode_ci",
+          },
+        },
+      },
       Database: {
         Type: "AWS::RDS::DBInstance",
         Properties: {
@@ -109,6 +126,9 @@ const serverlessConfiguration: AWS = {
           DBInstanceClass: "db.t2.micro",
           MasterUsername: "${self:provider.environment.DATABASE_USERNAME}",
           MasterUserPassword: "${self:provider.environment.DATABASE_PASSWORD}",
+          DBParameterGroupName: {
+            Ref: "DBParameterGroup",
+          },
           DBSubnetGroupName: {
             Ref: "DBSubnetGroup",
           },

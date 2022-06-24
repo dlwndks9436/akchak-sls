@@ -64,46 +64,6 @@ const serverlessConfiguration: AWS = {
           VpcId: "${self:custom.vpc}",
         },
       },
-      NewKeyPair: {
-        Type: "AWS::EC2::KeyPair",
-        Properties: {
-          KeyName: "BHKeyPair",
-        },
-      },
-      BastionHost: {
-        Type: "AWS::EC2::Instance",
-        Properties: {
-          InstanceType: "t2.micro",
-          ImageId: "ami-0fd0765afb77bcca7",
-          KeyName: {
-            Ref: "NewKeyPair",
-          },
-          NetworkInterfaces: [
-            {
-              AssociatePublicIpAddress: true,
-              DeleteOnTermination: true,
-              SubnetId: {
-                Ref: "PublicSubnet",
-              },
-              DeviceIndex: 0,
-              GroupSet: [{ "Fn::GetAtt": ["BHSecurityGroup", "GroupId"] }],
-            },
-          ],
-          SourceDestCheck: false,
-        },
-      },
-      AllowSSH: {
-        Type: "AWS::EC2::SecurityGroupIngress",
-        Properties: {
-          SourceSecurityGroupId: {
-            Ref: "BHSecurityGroup",
-          },
-          GroupId: "${self:custom.dbSecurityGroup}",
-          IpProtocol: "tcp",
-          FromPort: 22,
-          ToPort: 22,
-        },
-      },
       InternetGateway: {
         Type: "AWS::EC2::InternetGateway",
       },
@@ -143,6 +103,46 @@ const serverlessConfiguration: AWS = {
           RouteTableId: {
             Ref: "PublicRouteTable",
           },
+        },
+      },
+      NewKeyPair: {
+        Type: "AWS::EC2::KeyPair",
+        Properties: {
+          KeyName: "BHKeyPair",
+        },
+      },
+      BastionHost: {
+        Type: "AWS::EC2::Instance",
+        Properties: {
+          InstanceType: "t2.micro",
+          ImageId: "ami-0fd0765afb77bcca7",
+          KeyName: {
+            Ref: "NewKeyPair",
+          },
+          NetworkInterfaces: [
+            {
+              AssociatePublicIpAddress: true,
+              DeleteOnTermination: true,
+              SubnetId: {
+                Ref: "PublicSubnet",
+              },
+              DeviceIndex: 0,
+              GroupSet: [{ "Fn::GetAtt": ["BHSecurityGroup", "GroupId"] }],
+            },
+          ],
+          SourceDestCheck: false,
+        },
+      },
+      AllowSSH: {
+        Type: "AWS::EC2::SecurityGroupIngress",
+        Properties: {
+          SourceSecurityGroupId: {
+            Ref: "BHSecurityGroup",
+          },
+          GroupId: "${self:custom.dbSecurityGroup}",
+          IpProtocol: "tcp",
+          FromPort: 22,
+          ToPort: 22,
         },
       },
     },
